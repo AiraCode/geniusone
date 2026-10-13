@@ -1,12 +1,57 @@
+import { useState, useRef, useEffect } from "react";
 import { Icon } from "../ui/Icon";
 import { FluidWaveHeader } from "./FluidWaveHeader";
 
 interface HeaderProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onNavigateProfile?: () => void;
+  onLogoutRequest?: () => void;
 }
 
-export function Header({ collapsed = false, onToggleCollapse }: HeaderProps) {
+export function Header({
+  collapsed = false,
+  onToggleCollapse,
+  onNavigateProfile,
+  onLogoutRequest,
+}: HeaderProps) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDropdownOpen]);
+
+  const handleEditProfile = () => {
+    setIsDropdownOpen(false);
+    onNavigateProfile?.();
+  };
+
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    onLogoutRequest?.();
+  };
+
   return (
     <header className="topbar">
       {/* Dynamic Fluid Wave Canvas (Seamless Infinity Loop & Wall Reflection) */}
@@ -58,23 +103,95 @@ export function Header({ collapsed = false, onToggleCollapse }: HeaderProps) {
       )}
 
       <div className="topbar__context">
-        <span>PT GENIUS MANUFACTURING</span>
+        <span>PT GENIUS ONE</span>
       </div>
 
       <div className="topbar__actions">
-       
-        <button type="button" aria-label="Settings">
+        <button type="button" aria-label="Settings" title="Settings">
           <Icon name="settings" size={17} />
         </button>
-        <div className="user">
+
+        <div
+          ref={userMenuRef}
+          className={`user ${isDropdownOpen ? "user--active" : ""}`}
+          onClick={() => setIsDropdownOpen((prev) => !prev)}
+          role="button"
+          tabIndex={0}
+          aria-haspopup="true"
+          aria-expanded={isDropdownOpen}
+          aria-label="User profile menu"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setIsDropdownOpen((prev) => !prev);
+            }
+          }}
+        >
           <span>RA</span>
           <div>
             <strong>Rizky Aditya</strong>
             <small>Procurement Manager</small>
           </div>
-          <Icon name="chevron" size={13} />
+          <Icon
+            name="chevronDown"
+            size={12}
+            className={`user__chevron ${isDropdownOpen ? "user__chevron--open" : ""}`}
+          />
+
+          {/* User Profile Dropdown Menu */}
+          {isDropdownOpen && (
+            <div
+              className="user-dropdown"
+              onClick={(e) => e.stopPropagation()}
+              role="menu"
+              aria-label="User options"
+            >
+              <div className="user-dropdown__header">
+                <div className="user-dropdown__avatar">RA</div>
+                <div className="user-dropdown__info">
+                  <strong>Rizky Aditya</strong>
+                  <span className="user-dropdown__role">Procurement Manager</span>
+                  <span className="user-dropdown__email">rizky.aditya@geniusone.com</span>
+                </div>
+              </div>
+
+              <div className="user-dropdown__divider" />
+
+              <div className="user-dropdown__menu">
+                <button
+                  type="button"
+                  className="user-dropdown__item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditProfile();
+                  }}
+                  role="menuitem"
+                >
+                  <Icon name="user" size={15} />
+                  <span>Edit Profile</span>
+                </button>
+
+                <div className="user-dropdown__divider" />
+
+                <button
+                  type="button"
+                  className="user-dropdown__item user-dropdown__item--danger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLogout();
+                  }}
+                  role="menuitem"
+                >
+                  <Icon name="logOut" size={15} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
+
+export default Header;
