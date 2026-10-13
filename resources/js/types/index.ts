@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
+  | "alertTriangle"
   | "archive"
   | "arrowDown"
   | "arrowLeft"
@@ -14,18 +15,24 @@ export type IconName =
   | "close"
   | "download"
   | "eye"
+  | "eyeOff"
   | "file"
   | "filter"
+  | "globe"
   | "grid"
   | "history"
   | "home"
   | "layers"
   | "list"
+  | "lock"
+  | "logOut"
   | "more"
   | "plus"
   | "print"
   | "search"
-  | "settings";
+  | "settings"
+  | "upload"
+  | "user";
 
 export type PageKey = "pr" | "po" | "report" | "warehouse";
 
@@ -35,7 +42,9 @@ export type ViewState =
   | { type: "po-detail"; code: string }
   | { type: "report-detail"; code: string }
   | { type: "warehouse-detail"; code: string }
-  | { type: "warehouse-create" };
+  | { type: "warehouse-create" }
+  | { type: "edit-profile" }
+  | { type: "login" };
 
 export type Column = {
   key: string;

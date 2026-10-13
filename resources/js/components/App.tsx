@@ -9,6 +9,9 @@ import { PurchaseOrderDetail } from "../pages/PurchaseOrderDetail";
 import { PurchaseOrderReportDetail } from "../pages/PurchaseOrderReportDetail";
 import { WarehouseDetail } from "../pages/WarehouseDetail";
 import { WarehouseCreate } from "../pages/WarehouseCreate";
+import { EditProfile } from "../pages/EditProfile";
+import { Login } from "../pages/Login";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { navigation, docToSlug } from "../data/mockData";
 import type { PageKey, ViewState, TableRow } from "../types";
 
@@ -19,6 +22,14 @@ interface AppProps {
 
 function resolveViewStateFromPath(pathname: string, defaultPage: PageKey = "report"): ViewState {
   const cleanPath = pathname.replace(/\/$/, "");
+
+  // Authentication & User Profile routes
+  if (cleanPath === "/login") {
+    return { type: "login" };
+  }
+  if (cleanPath === "/profile/edit" || cleanPath === "/edit-profile") {
+    return { type: "edit-profile" };
+  }
 
   // Create routes
   if (cleanPath === "/warehouse/create" || cleanPath === "/warehouse/add") {
@@ -68,6 +79,8 @@ export function App({ initialPage = "report", initialCode = "" }: AppProps) {
     if (typeof window !== "undefined") {
       return resolveViewStateFromPath(window.location.pathname, (initialPage as PageKey) || "report");
     }
+    if (initialPage === "login") return { type: "login" };
+    if (initialPage === "edit-profile" || initialPage === "profile.edit") return { type: "edit-profile" };
     if (initialPage === "warehouse-create") return { type: "warehouse-create" };
     if (initialPage === "pr-detail") return { type: "pr-detail", code: initialCode || "0026-PR-IMLI-X-2026" };
     if (initialPage === "po-detail") return { type: "po-detail", code: initialCode || "POL-1026-0040" };
@@ -76,8 +89,10 @@ export function App({ initialPage = "report", initialCode = "" }: AppProps) {
     return { type: "list", page: (initialPage as PageKey) || "report" };
   });
 
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
   // Calculate corresponding active sidebar section
-  const activeSidebarPage: PageKey =
+  const activeSidebarPage: PageKey | null =
     viewState.type === "list"
       ? viewState.page
       : viewState.type === "pr-detail"
@@ -86,7 +101,9 @@ export function App({ initialPage = "report", initialCode = "" }: AppProps) {
       ? "po"
       : viewState.type === "report-detail"
       ? "report"
-      : "warehouse";
+      : viewState.type === "warehouse-detail" || viewState.type === "warehouse-create"
+      ? "warehouse"
+      : null;
 
   const isDetailPage = viewState.type !== "list";
 
@@ -156,6 +173,51 @@ export function App({ initialPage = "report", initialCode = "" }: AppProps) {
     }
   }, []);
 
+  // Navigate to edit profile view
+  const handleNavigateProfile = useCallback(() => {
+    setViewState({ type: "edit-profile" });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      window.history.pushState({ type: "edit-profile" }, "", "/profile/edit");
+    }
+  }, []);
+
+  // Logout request from Header dropdown
+  const handleRequestLogout = useCallback(() => {
+    setShowLogoutDialog(true);
+  }, []);
+
+  // Confirm logout -> navigate to /login
+  const handleConfirmLogout = useCallback(() => {
+    setShowLogoutDialog(false);
+    setViewState({ type: "login" });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      window.history.pushState({ type: "login" }, "", "/login");
+    }
+  }, []);
+
+  // Cancel logout -> dismiss dialog, stay on current page
+  const handleCancelLogout = useCallback(() => {
+    setShowLogoutDialog(false);
+  }, []);
+
+  // Confirm save profile -> navigate to homepage (report)
+  const handleProfileSaveConfirmed = useCallback(() => {
+    handleNavigateList("report");
+  }, [handleNavigateList]);
+
+  // Cancel profile -> return to previous page or homepage
+  const handleProfileCancel = useCallback(() => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+    } else {
+      handleNavigateList("report");
+    }
+  }, [handleNavigateList]);
+
   // Listen to browser Back/Forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -170,87 +232,119 @@ export function App({ initialPage = "report", initialCode = "" }: AppProps) {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // Standalone Login page view
+  if (viewState.type === "login") {
+    return (
+      <Login onNavigateHome={() => handleNavigateList("report")} />
+    );
+  }
+
   return (
-    <AppLayout
-      activePage={activeSidebarPage}
-      onNavigate={handleNavigateList}
-      hideDefaultHeader={isDetailPage}
-    >
-      {/* List Page Views */}
-      {viewState.type === "list" && viewState.page === "pr" && (
-        <PurchaseRequisition
-          onDetail={(row: TableRow) =>
-            handleNavigateDetail("pr", row._rawNumber || row._rawPr || row._id || "")
-          }
-        />
-      )}
+    <>
+      <AppLayout
+        activePage={activeSidebarPage}
+        onNavigate={handleNavigateList}
+        onNavigateProfile={handleNavigateProfile}
+        onRequestLogout={handleRequestLogout}
+        hideDefaultHeader={isDetailPage}
+      >
+        {/* List Page Views */}
+        {viewState.type === "list" && viewState.page === "pr" && (
+          <PurchaseRequisition
+            onDetail={(row: TableRow) =>
+              handleNavigateDetail("pr", row._rawNumber || row._rawPr || row._id || "")
+            }
+          />
+        )}
 
-      {viewState.type === "list" && viewState.page === "po" && (
-        <PurchaseOrder
-          onDetail={(row: TableRow) =>
-            handleNavigateDetail("po", row._rawNumber || row._rawPo || row._id || "")
-          }
-        />
-      )}
+        {viewState.type === "list" && viewState.page === "po" && (
+          <PurchaseOrder
+            onDetail={(row: TableRow) =>
+              handleNavigateDetail("po", row._rawNumber || row._rawPo || row._id || "")
+            }
+          />
+        )}
 
-      {viewState.type === "list" && viewState.page === "report" && (
-        <PurchaseOrderReport
-          onDetail={(row: TableRow) =>
-            handleNavigateDetail("report", row._rawPo || row._rawPr || row._rawNumber || row._id || "")
-          }
-        />
-      )}
+        {viewState.type === "list" && viewState.page === "report" && (
+          <PurchaseOrderReport
+            onDetail={(row: TableRow) =>
+              handleNavigateDetail("report", row._rawPo || row._rawPr || row._rawNumber || row._id || "")
+            }
+          />
+        )}
 
-      {viewState.type === "list" && viewState.page === "warehouse" && (
-        <Warehouse
-          onDetail={(row: TableRow) =>
-            handleNavigateDetail("warehouse", row._rawNumber || row._rawRn || row._id || "")
-          }
-          onCreate={() => handleNavigateCreate("warehouse")}
-        />
-      )}
+        {viewState.type === "list" && viewState.page === "warehouse" && (
+          <Warehouse
+            onDetail={(row: TableRow) =>
+              handleNavigateDetail("warehouse", row._rawNumber || row._rawRn || row._id || "")
+            }
+            onCreate={() => handleNavigateCreate("warehouse")}
+          />
+        )}
 
-      {/* Dedicated Full Page Detail Views */}
-      {viewState.type === "pr-detail" && (
-        <PurchaseRequisitionDetail
-          code={viewState.code}
-          onBack={() => handleNavigateList("pr")}
-          onNavigateDetail={handleNavigateDetail}
-        />
-      )}
+        {/* Dedicated Full Page Detail Views */}
+        {viewState.type === "pr-detail" && (
+          <PurchaseRequisitionDetail
+            code={viewState.code}
+            onBack={() => handleNavigateList("pr")}
+            onNavigateDetail={handleNavigateDetail}
+          />
+        )}
 
-      {viewState.type === "po-detail" && (
-        <PurchaseOrderDetail
-          code={viewState.code}
-          onBack={() => handleNavigateList("po")}
-          onNavigateDetail={handleNavigateDetail}
-        />
-      )}
+        {viewState.type === "po-detail" && (
+          <PurchaseOrderDetail
+            code={viewState.code}
+            onBack={() => handleNavigateList("po")}
+            onNavigateDetail={handleNavigateDetail}
+          />
+        )}
 
-      {viewState.type === "report-detail" && (
-        <PurchaseOrderReportDetail
-          code={viewState.code}
-          onBack={() => handleNavigateList("report")}
-          onNavigateDetail={handleNavigateDetail}
-        />
-      )}
+        {viewState.type === "report-detail" && (
+          <PurchaseOrderReportDetail
+            code={viewState.code}
+            onBack={() => handleNavigateList("report")}
+            onNavigateDetail={handleNavigateDetail}
+          />
+        )}
 
-      {viewState.type === "warehouse-detail" && (
-        <WarehouseDetail
-          code={viewState.code}
-          onBack={() => handleNavigateList("warehouse")}
-          onNavigateDetail={handleNavigateDetail}
-        />
-      )}
+        {viewState.type === "warehouse-detail" && (
+          <WarehouseDetail
+            code={viewState.code}
+            onBack={() => handleNavigateList("warehouse")}
+            onNavigateDetail={handleNavigateDetail}
+          />
+        )}
 
-      {/* Dedicated Full Page Create View */}
-      {viewState.type === "warehouse-create" && (
-        <WarehouseCreate
-          onBack={() => handleNavigateList("warehouse")}
-          onSaved={() => handleNavigateList("warehouse")}
-        />
-      )}
-    </AppLayout>
+        {/* Dedicated Full Page Create View */}
+        {viewState.type === "warehouse-create" && (
+          <WarehouseCreate
+            onBack={() => handleNavigateList("warehouse")}
+            onSaved={() => handleNavigateList("warehouse")}
+          />
+        )}
+
+        {/* Dedicated Edit Profile View */}
+        {viewState.type === "edit-profile" && (
+          <EditProfile
+            onBack={handleProfileCancel}
+            onSaveConfirmed={handleProfileSaveConfirmed}
+          />
+        )}
+      </AppLayout>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutDialog}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Confirm Logout"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        icon="logOut"
+        onConfirm={handleConfirmLogout}
+        onCancel={handleCancelLogout}
+      />
+    </>
   );
 }
 

@@ -109,3 +109,18 @@ Route::get('/warehouse/detail/{code}', function ($code) {
 Route::get('/warehouse/details/{code}', function ($code) {
     return view('app', ['page' => 'warehouse-detail', 'code' => $code]);
 });
+
+// User Authentication (Frontend UI)
+Route::get('/login', function () {
+    return view('app', ['page' => 'login']);
+})->name('login');
+
+// Edit Profile Page
+Route::get('/profile/edit', function () {
+    return view('app', ['page' => 'edit-profile']);
+})->name('profile.edit');
+
+Route::get('/edit-profile', function () {
+    return view('app', ['page' => 'edit-profile']);
+});
+

@@ -4,7 +4,7 @@ import { navigation } from "../../data/mockData";
 import type { PageKey } from "../../types";
 
 interface SidebarProps {
-  activePage: PageKey;
+  activePage: PageKey | null;
   onNavigate: (page: PageKey) => void;
   collapsed: boolean;
 }

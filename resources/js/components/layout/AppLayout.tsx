@@ -7,8 +7,10 @@ import { pageMeta } from "../../data/mockData";
 import type { PageKey } from "../../types";
 
 interface AppLayoutProps {
-  activePage: PageKey;
+  activePage: PageKey | null;
   onNavigate: (page: PageKey) => void;
+  onNavigateProfile?: () => void;
+  onRequestLogout?: () => void;
   hideDefaultHeader?: boolean;
   children: ReactNode;
 }
@@ -16,18 +18,46 @@ interface AppLayoutProps {
 export function AppLayout({
   activePage,
   onNavigate,
+  onNavigateProfile,
+  onRequestLogout,
   hideDefaultHeader = false,
   children,
 }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const meta = pageMeta[activePage] || pageMeta.report;
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("geniusone_sidebar_collapsed") === "true";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const handleToggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("geniusone_sidebar_collapsed", String(next));
+        } catch {
+          // ignore
+        }
+      }
+      return next;
+    });
+  };
+
+  const meta = (activePage && pageMeta[activePage]) || pageMeta.report;
 
   return (
     <div className={`app-shell ${collapsed ? "app-shell--collapsed" : ""}`}>
       {/* Topbar Header with Logo and Collapse Toggle */}
       <Header
         collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed(!collapsed)}
+        onToggleCollapse={handleToggleCollapse}
+        onNavigateProfile={onNavigateProfile}
+        onLogoutRequest={onRequestLogout}
       />
 
       {/* Main Workspace */}
